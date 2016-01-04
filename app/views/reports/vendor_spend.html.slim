@@ -1,0 +1,225 @@
+.page-header.page-header-block
+  .page-header-section
+    h4.nm
+      | Vendor Spend
+      .pull-right#table-actions
+.row
+  .report-sidebar.col-md-4
+    .panel.panel-default
+      .panel-body
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-1 name="sort_type" value="0" type="radio"
+              label for="filter-option-1" &nbsp; Top 5 vendors
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-2 name="sort_type" value="1" type="radio"
+              label for="filter-option-2"  &nbsp; Top 10 vendors
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-3 name="sort_type" value="2" type="radio"
+              label for="filter-option-3"  &nbsp; Select vendors
+        .row
+          .col-md-12
+            select#vendors-filter.form-control multiple="multiple" placeholder=("Select vendor...") 
+              option value=""  Select a vendor...
+              = options_from_collection_for_select Vendor.all, :id, :name
+        .form-group
+  
+  .report-body.col-md-8
+    .panel.panel-inverse
+      .panel-heading
+        .row#calendar-control
+          .col-md-2
+            .btn-group
+              a.btn.btn-default#offset-minus <
+              a.btn.btn-default#offset-plus >
+          .col-md-5
+            h2.text-center#date-range-indicator ...
+          .col-md-5
+            .btn-group#date-range-type
+              a.btn.btn-default data-value="" today
+              a.btn.btn-default data-value="month" month
+              a.btn.btn-default data-value="week" week
+              a.btn.btn-default data-value="day" day
+
+      .panel-collapse.pull.out
+
+        table.searchable-table.table.no-bottom-border.table-hover#report-data
+          thead
+            tr
+              th Vendor Name
+              th.text-center width="150px" Number of Orders
+              th.text-center width="150px" Amount Spent
+              th.text-center width="150px" % of Total Spent
+
+        #loading.indicator
+          span.spinner
+
+
+
+
+- content_for :js do
+  javascript:
+    export_filename = "Vendor Spend Report - " + moment().format("YYYY.MM.DD") + " - #{current_user.name}"
+  coffee:
+    $(document).ready ->
+      offsetMonth = 0
+      offsetWeek  = 0
+      offsetDay   = 0
+      dateRangeType      = 'month' # 'today', 'week', 'month', 'day'
+      dateRangeIndicator = $('#date-range-indicator')
+      loading            = $('#loading')
+      $vendorsFilter     = undefined
+      vendorsFilter      = undefined
+
+      # DataTables initialization:
+      table = $('table#report-data').DataTable(
+        dom: 'Trt'
+        "aoColumnDefs": [
+          { 'bSortable': false, 'aTargets': [ 'nosort' ] }
+        ],
+        oTableTools:
+          sSwfPath: "/assets/adminre_theme_v120/plugins/datatables/tabletools/swf/copy_csv_xls_pdf.swf"
+          aButtons: [
+            {
+              "sExtends": "print",
+            },
+            {
+              "sExtends": "pdf",
+              "sFileName": export_filename + ".pdf"
+            },
+            {
+              "sExtends": "csv",
+              "sFileName": export_filename + ".csv"
+            }
+          ]
+      )
+
+      $('.DTTT').appendTo('#table-actions')
+
+
+      getRange = ->
+        from = Date.today()
+        to   = Date.today()
+        
+        switch dateRangeType
+          when "month"
+            from = Date.parse("t #{ if offsetMonth >= 0 then '+' + offsetMonth else offsetMonth  } month").clearTime().moveToFirstDayOfMonth()
+            to = Date.parse("t #{ if offsetMonth >= 0 then '+' + offsetMonth else offsetMonth } month").clearTime().moveToLastDayOfMonth()
+            dateRangeIndicator.text(from.toString("MMMM yyyy"))
+          when "week"
+            from = Date.parse("t #{ if offsetWeek >= 0 then '+' + offsetWeek-1 else offsetWeek-1 } week").monday()
+            to = Date.parse("t #{ if offsetWeek >= 0 then '+' + offsetWeek else offsetWeek } week").sunday()
+            dateRangeIndicator.text("#{ from.toString("MMM dd, yyyy") } - #{ to.toString("MMM dd, yyyy") }")
+          when "day"
+            from = Date.parse("t #{ if offsetDay >= 0 then '+' + offsetDay else offsetDay } day")
+            to = Date.parse("t #{ if offsetDay >= 0 then '+' + offsetDay else offsetDay } day")
+            dateRangeIndicator.text(from.toString("MMMM, dd, yyyy"))
+          else
+            dateRangeIndicator.text(from.toString("MMMM, dd, yyyy"))
+
+        [from.toString("dd-MM-yyyy"), to.toString("dd-MM-yyyy")]
+
+      loadData = ->
+        # disabling offset buttons if chosen "Today"
+        if !!dateRangeType then $('#offset-minus, #offset-plus').show() else $('#offset-minus, #offset-plus').hide()
+        
+        loading.show()
+        range = getRange()
+
+        $.debounce(1000, ->
+          $.ajax({
+            dataType: 'json'
+            type: "GET"
+            url: Routes.report_path("vendor_spend_data")
+            data:
+              from: range[0]
+              to: range[1]
+            success: (data)->
+              table.clear().draw()
+              $(data).each (i, el)->
+
+                table.row.add( [
+                  el.vendor_name
+                  "<div class='text-center'>#{el.num_orders}</div>"
+                  "<div class='text-center'><span class='text-muted bold'>$#{ formatPrice(el.spend) }</span></div>"
+                  "<div class='text-center'>#{ Math.round(el.percentage_of_spend) }%</div>"
+                ] ).draw()
+              sortAndOrder()
+            complete: -> loading.hide()
+          })
+        )()
+
+      # loading dara after page render complete:
+      loadData()
+
+      selectedVendorsFilter = {}
+
+      sortAndOrder = ->
+        filter = $('input:radio[name="sort_type"]:checked').val()
+        table.columns(0).search("").page.len(-1) # resetting previous filters
+        vendorsFilter.disable()
+
+        if filter is "0"      # top 5 vendors
+          vendorsFilter.clear()
+          table.order( [ 3, 'desc' ] ).page.len(5).draw()
+        else if filter is "1" # top 10 vendors
+          vendorsFilter.clear()
+          table.order( [ 3, 'desc' ] ).page.len(10).draw()
+        else if filter is "2"
+          vendorsFilter.enable()
+          filterByVendor()
+          
+      filterByVendor = ->
+        filterTermsArray = (val for key, val of selectedVendorsFilter)
+        # escaping search string for using in the regexp:
+        filterTermsArray = $.map(filterTermsArray, (term)-> term.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") )
+        table.columns(0).search( filterTermsArray.join("|"), true, false).draw()
+
+      $vendorsFilter = $('#vendors-filter').selectize(
+        onItemAdd: (value, data)->
+          selectedVendorsFilter[value] = $(data).text()
+          filterByVendor()
+        onItemRemove: (value)->
+          delete selectedVendorsFilter[value]
+          filterByVendor()
+      )
+
+      vendorsFilter = $vendorsFilter[0].selectize
+
+      $('input:radio[name="sort_type"]').on 'change', sortAndOrder
+
+      # events handlers:
+      $('#date-range-type > a').on('click', ->
+        $(this).parent().find('a').removeClass('active')
+        $(this).addClass 'active'
+        if dateRangeType isnt $(this).data('value') # reset all offsets if changed range type
+          offsetMonth = 0
+          offsetWeek  = 0
+          offsetDay   = 0
+
+          dateRangeType = $(this).data('value')
+          loadData()
+      )
+
+      $("#date-range-type > a[data-value='#{ dateRangeType }']").addClass('active')
+
+      $('#offset-minus').on 'click', ->
+        switch dateRangeType
+          when "month" then offsetMonth -= 1
+          when "week" then offsetWeek -= 1
+          when "day" then offsetDay -= 1
+        loadData()
+
+      $('#offset-plus').on 'click', ->
+        switch dateRangeType
+          when "month" then offsetMonth += 1
+          when "week" then offsetWeek += 1
+          when "day" then offsetDay += 1
+        loadData()
+
+      

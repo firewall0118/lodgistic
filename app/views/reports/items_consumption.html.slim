@@ -1,0 +1,333 @@
+.page-header.page-header-block
+  .page-header-section
+    h4.nm
+      | Item Consumption
+      .pull-right#table-actions
+.row
+  .report-sidebar.col-md-3
+    .panel.panel-default
+      .panel-body
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-1 name="sort_type" value="0" type="radio"
+              label for="filter-option-1"= raw t('.top_5_consumed_items')
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-2 name="sort_type" value="1" type="radio"
+              label for="filter-option-2"= raw t('.top_10_consumed_items')
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-3 name="sort_type" value="2" type="radio"
+              label for="filter-option-3"  &nbsp; Select vendors
+        .row.mb10
+          .col-md-12
+            select#vendors-filter.form-control multiple="multiple" placeholder=("Select vendor...") 
+              option value=""  Select a vendor...
+              = options_from_collection_for_select Vendor.all, :id, :name
+
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-4 name="sort_type" value="3" type="radio"
+              label for="filter-option-4"  &nbsp; Select items
+        .row.mb10
+          .col-md-12
+            select#items-filter.form-control multiple="multiple" placeholder=("Select vendor...") 
+              option value=""  Select an item...
+              = options_from_collection_for_select Item.all, :id, :name
+
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-5 name="sort_type" value="4" type="radio"
+              label for="filter-option-5"  &nbsp; Select categories
+        .row.mb10
+          .col-md-12
+            select#categories-filter.form-control multiple="multiple" placeholder=("Select vendor...") 
+              option value=""  Select a category...
+              = options_from_collection_for_select Category.all, :id, :name
+  
+        .row.mb10
+          .col-md-12
+            span.radio.custom-radio.custom-radio-primary  
+              input#filter-option-6 name="sort_type" value="5" type="radio"
+              label for="filter-option-6"  &nbsp; Select lists
+        .row
+          .col-md-12
+            select#lists-filter.form-control multiple="multiple" placeholder=("Select list...") 
+              option value=""  Select a list...
+              = options_from_collection_for_select List.all, :id, :name
+
+  .report-body.col-md-9
+    .panel
+      .panel-heading.black
+        .row#calendar-control
+          table style="width:100%;border:none"
+            tr
+              td
+                .btn-group
+                  a.btn.btn-default#offset-minus <
+                  a.btn.btn-default#offset-plus >
+              td
+                h2.text-center#date-range-indicator ...
+              td#date-range-selector
+                .btn-group#date-range-type
+                  a.btn.btn-default data-value="quarter" = t('.quarter')
+                  a.btn.btn-default data-value="half_year" = t('.6_month')
+                  a.btn.btn-default data-value="year" = t('.year')
+
+      .panel-collapse.pull.out
+
+        table.searchable-table.table.no-bottom-border.table-hover.items-consumption#report-data
+          thead
+            tr
+              th= t('.item_name')
+              th.text-center width="150px"= t('.last_inventory_time')
+              /th.text-center= t('.last_order_sent_at')
+              th.text-center width="150px"= t('.avarage_monthly_orders')
+              th.text-center width="100px"= t('.avarage_order_quantity')
+              th.text-center width="100px"= t('.order_cost')
+              th
+              th
+              th
+
+
+        #loading.indicator
+          span.spinner
+
+
+- content_for :js do
+  javascript:
+    export_filename = "Items Consumption Report - " + moment().format("YYYY.MM.DD") + " - #{current_user.name}"
+  coffee:
+    $(document).ready ->
+      offset = 0
+      dateRangeType      = 'quarter' # 'quarter', 'half_month', 'year'
+      dateRangeIndicator = $('#date-range-indicator')
+      loading            = $('#loading')
+      $vendorsFilter     = undefined
+      vendorsFilter      = undefined
+      $range = []
+
+      selectizeFilters = [
+        {name: 'items', selector: '#items-filter', columnIdx: 0, selectizeInstance: undefined, selectedValues: {}, filterFunction: undefined}
+        {name: 'vendors', selector: '#vendors-filter', columnIdx: 5, selectizeInstance: undefined, selectedValues: {}, filterFunction: undefined}
+        {name: 'categories', selector: '#categories-filter', columnIdx: 6, selectizeInstance: undefined, selectedValues: {}, filterFunction: undefined}
+        {name: 'lists', selector: '#lists-filter', columnIdx: 7, selectizeInstance: undefined, selectedValues: {}, filterFunction: undefined}
+      ]
+
+      # DataTables initialization:
+      table = $('table#report-data').DataTable(
+        dom: 'Trt'
+        aoColumns: [null, null, {sType: 'avg_orders_sorter'}, null, null, { bVisible: false }, { bVisible: false }, { bVisible: false }]
+        aoColumnDefs: [
+          { bSortable: false, aTargets: [ 'nosort' ] }
+        ]
+        oTableTools:
+          sSwfPath: "/assets/adminre_theme_v120/plugins/datatables/tabletools/swf/copy_csv_xls_pdf.swf"
+          aButtons: [
+            { sExtends: "print" }
+            { sExtends: "pdf", sFileName: export_filename + ".pdf" }
+            { sExtends: "csv", sFileName: export_filename + ".csv" }
+          ]
+      )
+
+      $('.DTTT').appendTo('#table-actions')
+
+      resetFilters = ->
+        $.each( selectizeFilters, (i, sFilter)->
+          table.columns(sFilter.columnIdx).search("").page.len(-1) # resetting previous filters
+          sFilter.selectizeInstance.disable()
+          sFilter.selectizeInstance.clear()
+        )
+
+      getRange = ->
+        from = undefined
+        to   = undefined
+        currentMonth = (new Date()).getMonth() + 1
+        currentYear = (new Date()).getFullYear()
+
+        switch dateRangeType
+          when "quarter"
+            currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
+            quarterFrom = ((currentQuarter - 1 + offset) * 3) + 1 - currentMonth
+            quarterTo = ((currentQuarter + offset) * 3) - currentMonth
+
+            from = Date.parse("t #{ if quarterFrom >= 0 then '+' + quarterFrom else quarterFrom } month").clearTime().moveToFirstDayOfMonth()
+            to = Date.parse("t #{ if quarterTo >= 0 then '+' + quarterTo else quarterTo } month").clearTime().moveToLastDayOfMonth()
+            dateRangeIndicator.text("#{ from.toString("MMM dd, yyyy") } - #{ to.toString("MMM dd, yyyy") }")
+          when "half_year"
+            currentHalfYear = Math.ceil((new Date().getMonth() + 1) / 6)
+            halfYearFrom = ((currentHalfYear - 1 + offset) * 6) + 1 - currentMonth
+            halfYearTo = ((currentHalfYear + offset) * 6) - currentMonth
+
+            from = Date.parse("t #{ if halfYearFrom >= 0 then '+' + halfYearFrom else halfYearFrom } month").clearTime().moveToFirstDayOfMonth()
+            to = Date.parse("t #{ if halfYearTo >= 0 then '+' + halfYearTo else halfYearTo } month").clearTime().moveToLastDayOfMonth()
+            dateRangeIndicator.text("#{ from.toString("MMM dd, yyyy") } - #{ to.toString("MMM dd, yyyy") }")
+          when "year"
+            from = Date.now().set(year: currentYear + offset, month: 0).clearTime().moveToFirstDayOfMonth()
+            to = Date.now().set(year: currentYear + offset, month: 11).clearTime().moveToLastDayOfMonth()
+            dateRangeIndicator.text("#{ from.toString("MMM dd, yyyy") } - #{ to.toString("MMM dd, yyyy") }")
+
+        [from.toString("dd-MM-yyyy"), to.toString("dd-MM-yyyy")]
+
+      loadData = ->
+        loading.show()
+        $range = getRange()
+
+        $.debounce(1000, ->
+          $.ajax({
+            dataType: 'json'
+            type: "GET"
+            url: Routes.report_path("items_consumption_data")
+            data: { from: $range[0], to: $range[1] }
+            success: (data)->
+              table.clear().draw()
+              $(data).each (i, el)->
+
+                table.row.add( [
+                  el.name
+                  if !!el.last_inventory_time then (new Date(el.last_inventory_time * 1000)).toString('dd-MM-yyyy') else ""
+                  #if !!el.last_order_sent_at then (new Date(el.last_order_sent_at * 1000)).toString('dd-MM-yyyy') else ""
+                  if 0 < el.avg_monthly_orders < 1 then "Less than 1" else el.avg_monthly_orders
+                  el.avg_order_qty
+                  el.avg_order_cost
+                  el.vendor    # hidden
+                  el.category  # hidden
+                  el.lists     # hidden
+                  el.item_id   # hidden
+                ] ).draw()
+              sortAndOrder()
+              dataRows()
+            complete: -> loading.hide()
+          })
+        )()
+
+      # loading data after page render complete:
+      loadData()
+
+      applyFilter = (filter)->
+        filterTermsArray = (val for key, val of filter.selectedValues)
+        # escaping search string for using in the regexp:
+        filterTermsArray = $.map(filterTermsArray, (term)-> term.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") )
+        table.columns(filter.columnIdx).search( filterTermsArray.join("|"), true, false).draw()
+
+      sortAndOrder = ->
+        filterSelected = $('input:radio[name="sort_type"]:checked').val()
+
+        resetFilters()
+        if filterSelected is undefined 
+        else if filterSelected is "0" # top 5 vendors
+          table.order( [ 3, 'desc' ] ).page.len(5).draw()
+        else if filterSelected is "1" # top 10 vendors
+          table.order( [ 3, 'desc' ] ).page.len(10).draw()
+        else
+          filterName = { '2': 'vendors', '3': 'items', '4': 'categories', '5': 'lists' }[filterSelected]
+          vendorsObject = $.grep(selectizeFilters, (x)-> x.name == filterName )[0]
+          vendorsObject.selectizeInstance.enable()
+          applyFilter(vendorsObject)
+
+      $.each(selectizeFilters, (i, filter)->
+        selectElem = $(filter.selector).selectize(
+          onItemAdd: (value, data)->
+            filter.selectedValues[value] = $(data).text()
+            applyFilter(filter)
+          onItemRemove: (value)->
+            delete filter.selectedValues[value]
+            applyFilter(filter)
+        )
+        filter.selectizeInstance = selectElem[0].selectize
+      )
+
+      resetFilters()
+
+      $('input:radio[name="sort_type"]').on 'change', sortAndOrder
+
+      # events handlers:
+      $('#date-range-type > a').on('click', ->
+        $(this).parent().find('a').removeClass('active')
+        $(this).addClass 'active'
+        if dateRangeType isnt $(this).data('value') # reset offset if changed $range type
+          offset = 0
+          dateRangeType = $(this).data('value')
+          loadData()
+      )
+
+      $("#date-range-type > a[data-value='#{ dateRangeType }']").addClass('active')
+
+      # date $range navigation buttons
+      $('#offset-minus').on 'click', -> offset -= 1; loadData()
+      $('#offset-plus').on 'click', -> offset += 1; loadData()
+
+      nCloneTh = document.createElement("th")
+      nCloneTd = document.createElement("td")
+      nCloneTd.innerHTML = """<a href="#" class="text-primary detail-toggler" style="text-decoration:none;font-size:14px;"><i class="ico-plus-circle"></i></a>"""
+      nCloneTd.className = "center"
+
+      $("#report-data thead tr").each ->
+        @insertBefore nCloneTh, @childNodes[0]
+        return
+
+      # DATA ROWS:
+      dataRows = ->
+        fnFormatDetails = (item_id)->
+          markup = $ """
+            <tr><td colspan="7">
+              <div class="row-chart-data">
+                <div class="chart mt10" style="height:150px;"></div>
+              </div>
+            </td></tr>
+          """
+
+          plotOptions =
+            series:
+              lines: { show: true }
+              splines: { show: false, tension: 0.4, lineWidth: 2, fill: 0 }
+              points: { show: true, radius: 3, lineWidth: 4, fill: true, fillColor: "#e12544" }
+            grid: { borderColor: "#eee", borderWidth: 1, hoverable: true, backgroundColor: "#fcfcfc" }
+            tooltip: true
+            tooltipOpts: {content: "%x : %y" }
+            xaxis: { tickColor: "#ccc", mode: "categories" }
+            yaxis: { tickColor: "#ccc" }
+            shadowSize: 0
+
+          # Load chart data
+          $.ajax( url: Routes.report_path("item_orders_chart_data"), type: "GET", data: {id: item_id, from: $range[0], to: $range[1] },  dataType: "json" ).done (response) ->
+            chartData =
+              $.map(response, (point)->
+                datePoint = new Date(point[0]*1000)
+
+                switch dateRangeType
+                  when "quarter"
+                    return [[ "Q#{ Math.ceil((datePoint.getMonth() + 1) / 3) }, #{datePoint.getFullYear()}", point[1] ]]
+                  when "half_year"
+                    return [[ "#{ new Date(point[0]*1000).toString('MMM, yyyy') } - <br>#{ datePoint.clearTime().addMinutes(-1).addMonths(6).toString('MMM, yyyy') }", point[1] ]]
+                  when "year"
+                    return [[ datePoint.toString('yyyy'), point[1] ]]
+              )
+
+            $.plot markup.find('.chart'), [ label: "Orders", data: chartData, color: '#e12544' ], plotOptions
+            #$(self.element).parents(".panel").find(".indicator").removeClass "show"
+          markup[0]
+
+        $("#report-data tbody tr").each -> # adding buttons to expand rows
+          @insertBefore nCloneTd.cloneNode(true), @childNodes[0]
+
+        # Add event listener for opening and closing details
+        $("#report-data tbody td .detail-toggler").on "click", (e) ->
+          e.preventDefault()
+          tr  = $(this).parents("tr")
+          row = table.row(tr)
+          tr.toggleClass "open"
+
+          if table.row(row).child.isShown()
+            $(this).children().attr "class", "ico-plus-circle"
+            row.child.hide()
+          else
+            $(this).children().attr "class", "ico-minus-circle"
+            #spinner = $('<div class="indicator show">Loading Chart Data ... <span class="spinner spinner7"></span></div>')
+            item_id = row.data()[8] # item id is stored in the last column of the row
+            row.child(fnFormatDetails(item_id)).show()

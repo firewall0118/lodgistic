@@ -1,0 +1,14 @@
+connection: &connection
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  username: pair
+  password: 
+
+development:
+  <<: *connection
+  database: lodgistics_development
+
+test:
+  <<: *connection
+  database: lodgistics_test

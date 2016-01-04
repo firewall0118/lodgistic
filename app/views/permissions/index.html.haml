@@ -1,0 +1,38 @@
+.row
+  .large-12.columns
+    .menubar
+      = breadcrumb link_to('Home', root_path), 'Permissions'
+
+      .row-fluid
+        .span7
+          .btn-group
+            = link_to new_permission_path, class: 'btn btn-primary' do
+              %i.icon-plus
+              New Permission
+
+.row
+  .large-12.columns
+    .box.with_table
+      %table.index.responsive
+        %thead
+          %tr
+            %th.hidden-phone Id
+            %th Role
+            %th Action
+            %th Subject
+            %th.actions Actions
+        %tbody
+          - @permissions.each do |permission|
+            %tr
+              %td.hidden-phone= permission.id
+              %td= permission.role.name
+              %td= permission.action
+              %td= permission.subject_type + (" - #{permission.subject.to_s} (#{permission.subject.id})" unless permission.subject.nil?).to_s
+              %td
+                .btn-group
+                  = link_to_with_icon 'icon-pencil', 'Edit', edit_permission_path(permission), class: 'btn'
+                  %a.btn.dropdown-toggle{ href: '#', data: {toggle: 'dropdown'} }
+                    %span.caret
+                  %ul.dropdown-menu
+                    %li
+                      = link_to_with_icon 'icon-remove-sign', 'Delete', permission, method: :delete, data: {confirm: 'Are you sure?'}

@@ -1,0 +1,85 @@
+aside.sidebar.sidebar-left.sidebar-menu
+  section.content.slimscroll
+    h5.heading= t('.main_menu')
+    - if current_user.corporate?
+      ul.topmenu.topmenu-responsive data-toggle="menu" 
+        li class=("#{'active' if current_page?(corporate_root_path)}") 
+          = link_to :corporate_root do
+            span.figure
+              i.ico-dashboard
+            span.text= t('.dashboard')
+        li class=("#{'active open' if current_page?(corporate_reports_path)}") 
+          a href=corporate_reports_path data-target="#reports-menu" data-toggle="submenu"
+            span.figure
+              i.ico-chart
+            span.text= t('.reports')
+    - else
+      ul.topmenu.topmenu-responsive data-toggle="menu" 
+        li class=("#{'active' if current_page?(dashboard_path) || current_page?(authenticated_root_path)}") 
+          = link_to :dashboard do
+            span.figure
+              i.ico-dashboard
+            span.text= t('.dashboard')
+        - if can? :index, List
+          li class=("#{'active' if lists_active?}") 
+            = link_to :lists do
+              span.figure
+                i.ico-stack3
+              span.text= t('.lists')
+        - if can? :index, PurchaseRequest
+          li class=("#{'active' if purchase_requests_active?}") 
+            = link_to :purchase_requests do
+              span.figure
+                i.ico-basket2
+              span.text= t('.requests')
+        - if can? :index, PurchaseOrder
+          li class=("#{'active' if purchase_orders_active?}") 
+            = link_to :purchase_orders do
+              span.figure
+                i.ico-shopping-cart
+              span.text= t('.orders')
+        li class=("#{'active' if items_active?}") 
+          = link_to :items do
+            span.figure
+              i.ico-apple-fruit
+            span.text= t('.items')
+        li class=("#{'active open' if reports_active?}") 
+          a href=reports_path data-target="#reports-menu" data-toggle="submenu"
+            span.figure
+              i.ico-chart
+            span.text= t('.reports')
+          ul#reports-menu class=("submenu collapse#{'in' if reports_active?}")
+            li class=("#{'active' if favorie_reports_active?}") 
+              = link_to favorites_reports_path do
+                span.text= t('.favorites')
+                span class="number"
+                  span#favorite_reports_count class="label label-success #{ 'hidden' if current_user.favorite_reports.empty? }"= current_user.favorite_reports.count
+        li class=("#{'active open' if setup_active?}") 
+          a data-parent=".topmenu" data-target="#setup" data-toggle="submenu" href="javascript:void(0);" 
+            span.figure
+              i.ico-sitemap
+            span.text= t('.setup')
+            span.arrow
+          /! START 2nd Level Menu
+          ul#setup class=("submenu collapse#{'in' if setup_active?}") 
+            li.submenu-header.ellipsis= t('.setup')
+            li class=("#{'active' if vendors_active?}") 
+              = link_to :vendors do
+                span.text= t('.vendors')
+            li class=("#{'active' if categories_active?}") 
+              = link_to :categories do
+                span.text= t('.categories')
+            li class=("#{'active' if locations_active?}") 
+              = link_to :locations do
+                span.text= t('.locations')
+            li class=("#{'active' if departments_active?}") 
+              = link_to :departments do
+                span.text= t('.departments')
+            li class=('active' if budgets_active?)
+              = link_to :budgets do
+                span.text= t('.budgets')
+        li class=("#{'active' if users_active?}") 
+          = link_to users_path do
+            span.figure
+              i.ico-group
+            span.text= t('.team')

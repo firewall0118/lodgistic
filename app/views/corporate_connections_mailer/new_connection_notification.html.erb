@@ -1,0 +1,36 @@
+<%= render 'mailer/top' %>
+  <table border="0" cellpadding="0" cellspacing="0" class="kmTextBlock" width="100%" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0">
+  <tbody class="kmTextBlockOuter">
+  <tr>
+  <td class="kmTextBlockInner" valign="top" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; ">
+  <table align="left" border="0" cellpadding="0" cellspacing="0" class="kmTextContentContainer" width="100%" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0">
+  <tbody>
+  <tr>
+  <td class="kmTextContent" valign="top" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; color: #505050; font-family: Helvetica, Arial; font-size: 14px; line-height: 150%; text-align: left; padding-top:9px;padding-bottom:9px;padding-left:18px;padding-right:18px;">
+    <p style="margin: 0; text-align: justify;"><%= @property.name %> has sent an invitation to join your corporate. You may review the invitation by clicking the link.</p>
+  </td>
+  </tr>
+  </tbody>
+  </table>
+  </td>
+  </tr>
+  </tbody>
+  </table>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" class="kmButtonBlock" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0">
+  <tbody class="kmButtonBlockOuter">
+  <tr>
+  <td valign="top" align="center" class="kmButtonBlockInner" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; padding: 9px 18px; ">
+  <table border="0" cellpadding="0" cellspacing="0" width="" class="kmButtonContentContainer" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; background-color: #999; background-color:#E12558;border-radius:15px;">
+  <tbody>
+  <tr>
+  <td align="center" valign="middle" class="kmButtonContent" style="border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; color: white; font-family: Helvetica, Arial; font-size: 16px; padding: 15px; padding-top:15px;padding-bottom:15px;padding-left:20px;padding-right:20px;color:#FFFFFF;font-weight:bold;font-size:16px;font-family:Helvetica, Arial;">
+    <a class="kmButton " title="" href="<%= corporate_property_connection_url(@connection) %>" target="_self" style="word-wrap: break-word; font-weight: normal; letter-spacing: -0.5px; line-height: 100%; text-align: center; text-decoration: underline; color: #0000cd; font-family: Helvetica, Arial; font-size: 16px; text-decoration:initial;color:#FFFFFF;font-weight:bold;font-size:16px;font-family:Helvetica, Arial;padding-top:0;padding-bottom:0;">Review Invitation</a>
+  </td>
+  </tr>
+  </tbody>
+  </table>
+  </td>
+  </tr>
+  </tbody>
+  </table>
+<%= render 'mailer/bottom' %>

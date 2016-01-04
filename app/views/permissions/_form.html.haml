@@ -1,0 +1,24 @@
+= simple_form_for @permission, html: { class: 'form-horizontal' } do |f|
+  %fieldset
+    %legend= title
+    = f.input :role_id, collection: current_property.roles, label: "Role", label_method: :name, autofocus: true, include_blank: false
+    = f.input :action, collection: Permission.actions, include_blank: false
+    = f.input :subject_type, collection: Permission.models, include_blank: false
+    = f.input :subject_id, as: :select, collection: []
+    .form-actions
+      = f.submit 'Save', class: 'btn btn-primary'
+
+:javascript
+  $subject_type = $('#permission_subject_type');
+  $subject_id = $('#permission_subject_id');
+
+  $subject_type.change(function() { 
+    $subject_id.html('');
+    $subject_id.append($('<option />', { value: '', text: '' }));
+    $.getJSON('/permissions/subjects.json', {class: $(this).val()}, function(subjects) {
+      $.each(subjects, function(index, subject){
+        $subject_id.append($('<option />', { value: subject.id, text: subject.name }));
+      });
+    });
+  }).change();
+
